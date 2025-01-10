@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi_jwt_auth import AuthJWT
 from fastapi_jwt_auth.exceptions import AuthJWTException
 from fastapi.responses import JSONResponse
+from pydantic import BaseModel
 from app.config import settings
 from app.routers import auth, datasets, transform
 from app.models.database import Base, engine
@@ -32,9 +33,12 @@ app.add_middleware(
 Base.metadata.create_all(bind=engine)
 
 # JWT Settings
+class JWTSettings(BaseModel):
+    authjwt_secret_key: str = settings.AUTHJWT_SECRET_KEY
+
 @AuthJWT.load_config
 def get_config():
-    return settings
+    return JWTSettings()
 
 
 # Handle AuthJWT exceptions globally
@@ -45,7 +49,7 @@ def authjwt_exception_handler(request, exc):
         content={"detail": exc.message}
     )
 
-# health check
+# Health check
 @app.get("/health/celery", tags=["Health"])
 def health_check():
     """Check the health of Celery workers."""

@@ -18,6 +18,8 @@ class Settings(BaseSettings):
     PREVIOUS_SECRET_KEYS: List[str] = Field(default_factory=lambda: eval(
         os.getenv("PREVIOUS_SECRET_KEYS", "[]")
     ))
+    AUTHJWT_SECRET_KEY: str = os.getenv("AUTHJWT_SECRET_KEY", "your_secret_key_here")  # Add this
+
     ALGORITHM: str = os.getenv("ALGORITHM", "HS256")
     ACCESS_TOKEN_EXPIRE_MINUTES: int = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30"))
 

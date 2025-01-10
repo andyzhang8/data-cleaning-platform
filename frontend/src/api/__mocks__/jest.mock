@@ -1,0 +1,9 @@
+jest.mock('../utils/axiosInstance', () => ({
+  post: jest.fn(),
+  get: jest.fn(),
+  interceptors: {
+    request: {
+      use: jest.fn(),
+    },
+  },
+}))
