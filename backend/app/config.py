@@ -1,50 +1,60 @@
-from pydantic import BaseSettings
-from typing import List
-import secrets
+from dotenv import load_dotenv, set_key
 import os
+import secrets
+import json
+from pydantic import BaseSettings, Field
+from typing import List
+
+dotenv_path = os.path.join(os.path.dirname(__file__), "../.env")
+load_dotenv(dotenv_path)
 
 class Settings(BaseSettings):
     # Database settings
-    DATABASE_URL: str
-
-    # Redis settings for Celery
-    REDIS_URL: str
+    DATABASE_URL: str = os.getenv("DATABASE_URL", "postgresql://localhost:5432/mydb")
+    REDIS_URL: str = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 
     # JWT settings
-    PRIMARY_SECRET_KEY: str  # Current primary secret key
-    PREVIOUS_SECRET_KEYS: List[str] = []  # List of previous keys
-    ALGORITHM: str = "HS256"  # JWT signing algorithm
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30  # in minutes
+    PRIMARY_SECRET_KEY: str = os.getenv("PRIMARY_SECRET_KEY", secrets.token_hex(32))
+    PREVIOUS_SECRET_KEYS: List[str] = Field(default_factory=lambda: eval(
+        os.getenv("PREVIOUS_SECRET_KEYS", "[]")
+    ))
+    ALGORITHM: str = os.getenv("ALGORITHM", "HS256")
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30"))
 
     # File settings
-    UPLOAD_DIR: str = "temp/uploads"  # Directory for temporary storage
-    ALLOWED_FILE_TYPES: List[str] = ["text/csv", "application/vnd.ms-excel", "application/json"]
-    MAX_UPLOAD_SIZE_MB: int = 50  # in MB
-
-    class Config:
-        env_file = os.path.join(os.path.dirname(__file__), "../.env")
-        env_file_encoding = "utf-8"
+    UPLOAD_DIR: str = os.getenv("UPLOAD_DIR", "temp/uploads")
+    ALLOWED_FILE_TYPES: List[str] = eval(
+        os.getenv("ALLOWED_FILE_TYPES", "['text/csv', 'application/vnd.ms-excel', 'application/json']")
+    )
+    MAX_UPLOAD_SIZE_MB: int = int(os.getenv("MAX_UPLOAD_SIZE_MB", "50"))
 
     def rotate_secret_key(self):
-        """Generate a new secret key and update the settings."""
+        """Generate a new secret key, update settings, and persist to .env."""
         new_key = secrets.token_hex(32)
         if self.PRIMARY_SECRET_KEY not in self.PREVIOUS_SECRET_KEYS:
             self.PREVIOUS_SECRET_KEYS.append(self.PRIMARY_SECRET_KEY)
+
         self.PRIMARY_SECRET_KEY = new_key
+
+        # Persist changes to .env file
+        set_key(dotenv_path, "PRIMARY_SECRET_KEY", self.PRIMARY_SECRET_KEY)
+        set_key(dotenv_path, "PREVIOUS_SECRET_KEYS", json.dumps(self.PREVIOUS_SECRET_KEYS))
+
         print(f"Secret key rotated. New primary key: {new_key}")
 
-# Initialize settings
+
+# Init
 settings = Settings()
 
 if __name__ == "__main__":
-    # For debugging
-    print("Database URL:", settings.DATABASE_URL)
-    print("Redis URL:", settings.REDIS_URL)
+    # Debugging
+    print("Before rotation:")
     print("JWT Primary Secret Key:", settings.PRIMARY_SECRET_KEY)
     print("JWT Previous Secret Keys:", settings.PREVIOUS_SECRET_KEYS)
-    print("Upload Directory:", settings.UPLOAD_DIR)
-    print("Allowed File Types:", settings.ALLOWED_FILE_TYPES)
-    print("Max Upload Size (MB):", settings.MAX_UPLOAD_SIZE_MB)
 
-    # Rotate the key for testing
+    # Rotate the key
     settings.rotate_secret_key()
+
+    print("After rotation:")
+    print("JWT Primary Secret Key:", settings.PRIMARY_SECRET_KEY)
+    print("JWT Previous Secret Keys:", settings.PREVIOUS_SECRET_KEYS)

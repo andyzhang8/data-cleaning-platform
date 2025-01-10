@@ -27,7 +27,6 @@ class Dataset(Base):
     owner = relationship("User", back_populates="datasets")
 
 
-# --- Pydantic Models for Validation ---
 # User auth models
 class UserCreate(BaseModel):
     username: str
